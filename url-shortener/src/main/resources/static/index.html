@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>URL Shortener</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 500px; margin: 60px auto; text-align: center; }
+        input { width: 70%; padding: 10px; font-size: 16px; }
+        button { padding: 10px 16px; font-size: 16px; cursor: pointer; }
+        #result { margin-top: 20px; font-size: 16px; }
+        #shortLink { color: #2563eb; word-break: break-all; }
+        table { margin: 30px auto; border-collapse: collapse; width: 100%; }
+        th, td { border: 1px solid #ddd; padding: 8px; font-size: 14px; }
+    </style>
+</head>
+<body>
+
+<h2>URL Shortener</h2>
+
+<input type="text" id="urlInput" placeholder="Paste your long URL here">
+<button onclick="shortenUrl()">Shorten</button>
+
+<div id="result"></div>
+
+<table id="historyTable">
+    <thead>
+    <tr><th>Short URL</th><th>Original URL</th><th>Clicks</th></tr>
+    </thead>
+    <tbody id="historyBody"></tbody>
+</table>
+
+<script>
+    async function shortenUrl() {
+      const input = document.getElementById('urlInput').value;
+      if (!input) { alert('Please enter a URL'); return; }
+
+      const response = await fetch('/api/shorten', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ originalUrl: input })
+      });
+
+      if (!response.ok) {
+        document.getElementById('result').innerText = 'Something went wrong.';
+        return;
+      }
+
+      const data = await response.json();
+      const shortUrl = window.location.origin + '/' + data.shortCode;
+
+      document.getElementById('result').innerHTML = `
+        <p>Short URL: <a id="shortLink" href="${shortUrl}" target="_blank">${shortUrl}</a>
+        <button onclick="copyLink('${shortUrl}')">Copy</button></p>
+      `;
+
+      addToHistory(shortUrl, data.originalUrl, data.clickCount);
+      document.getElementById('urlInput').value = '';
+    }
+
+    function copyLink(link) {
+      navigator.clipboard.writeText(link);
+      alert('Copied!');
+    }
+
+    function addToHistory(shortUrl, originalUrl, clicks) {
+      const row = document.getElementById('historyBody').insertRow(0);
+      row.innerHTML = `<td><a href="${shortUrl}" target="_blank">${shortUrl}</a></td><td>${originalUrl}</td><td>${clicks}</td>`;
+    }
+</script>
+
+</body>
+</html>

@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>URL Shortener</title>
+<style>
+  body { font-family: Arial, sans-serif; max-width: 500px; margin: 60px auto; text-align: center; }
+  input { width: 70%; padding: 10px; font-size: 16px; }
+  button { padding: 10px 16px; font-size: 16px; cursor: pointer; }
+  #result { margin-top: 20px; font-size: 16px; }
+  #shortLink { color: #2563eb; word-break: break-all; }
+  table { margin: 30px auto; border-collapse: collapse; width: 100%; table-layout: fixed; }
+  th, td { border: 1px solid #ddd; padding: 8px; font-size: 14px; word-break: break-all; overflow-wrap: break-word; }
+  td button { padding: 4px 8px; font-size: 14px; }
+</style>
+</head>
+<body>
+
+<h2>URL Shortener</h2>
+
+<input type="text" id="urlInput" placeholder="Paste your long URL here">
+<button onclick="shortenUrl()">Shorten</button>
+
+<div id="result"></div>
+
+<table id="historyTable">
+  <thead>
+    <tr><th>Short URL</th><th>Original URL</th><th>Delete</th></tr>
+  </thead>
+  <tbody id="historyBody"></tbody>
+</table>
+
+<script>
+async function shortenUrl() {
+  const input = document.getElementById('urlInput').value;
+  if (!input) { alert('Please enter a URL'); return; }
+
+  const response = await fetch('http://localhost:9091/api/shorten', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ originalUrl: input })
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    document.getElementById('result').innerText = errorText || 'Something went wrong.';
+    return;
+  }
+
+  const data = await response.json();
+  const shortUrl = 'http://localhost:9091/' + data.shortCode;
+
+  document.getElementById('result').innerHTML = `
+    <p>Short URL: <a id="shortLink" href="${shortUrl}" target="_blank">${shortUrl}</a>
+    <button onclick="copyLink('${shortUrl}')">Copy</button></p>
+  `;
+
+  addToHistory(shortUrl, data.originalUrl, data.id);
+  document.getElementById('urlInput').value = '';
+}
+
+function copyLink(link) {
+  navigator.clipboard.writeText(link);
+  alert('Copied!');
+}
+
+function addToHistory(shortUrl, originalUrl, id) {
+  const row = document.getElementById('historyBody').insertRow(0);
+  row.id = 'row-' + id;
+  row.innerHTML = `
+    <td><a href="${shortUrl}" target="_blank">${shortUrl}</a></td>
+    <td>${originalUrl}</td>
+    <td><button onclick="deleteUrl(${id})">🗑️</button></td>
+  `;
+}
+
+async function deleteUrl(id) {
+  await fetch('http://localhost:9091/api/urls/' + id, { method: 'DELETE' });
+  document.getElementById('row-' + id).remove();
+}
+
+async function loadHistory() {
+  const response = await fetch('http://localhost:9091/api/urls');
+  const urls = await response.json();
+  document.getElementById('historyBody').innerHTML = '';
+  urls.forEach(url => {
+    const shortUrl = 'http://localhost:9091/' + url.shortCode;
+    addToHistory(shortUrl, url.originalUrl, url.id);
+  });
+}
+
+window.onload = loadHistory;
+</script>
+
+</body>
+</html>
